@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skin Lesion Classifier</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; color: #1a202c; }
+
+  header {
+    background: linear-gradient(135deg, #1a365d, #2b6cb0);
+    color: white; padding: 24px 40px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  header h1 { font-size: 1.6rem; font-weight: 700; }
+  header p  { font-size: 0.9rem; opacity: 0.85; margin-top: 4px; }
+
+  .disclaimer {
+    background: #fff3cd; border-left: 4px solid #f6ad55;
+    padding: 12px 40px; font-size: 0.85rem; color: #744210;
+  }
+
+  main { max-width: 960px; margin: 32px auto; padding: 0 20px; }
+
+  .upload-card {
+    background: white; border-radius: 12px;
+    padding: 32px; text-align: center;
+    border: 2px dashed #bee3f8; margin-bottom: 24px;
+    transition: border-color 0.2s;
+  }
+  .upload-card:hover { border-color: #2b6cb0; }
+  .upload-card.dragover { background: #ebf8ff; border-color: #2b6cb0; }
+
+  .upload-icon { font-size: 48px; margin-bottom: 12px; }
+  .upload-card h2 { font-size: 1.1rem; color: #2d3748; margin-bottom: 8px; }
+  .upload-card p  { color: #718096; font-size: 0.9rem; margin-bottom: 20px; }
+
+  #fileInput { display: none; }
+  .btn {
+    display: inline-block; padding: 10px 24px;
+    background: #2b6cb0; color: white;
+    border: none; border-radius: 8px;
+    font-size: 0.95rem; cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn:hover { background: #2c5282; }
+  .btn:disabled { background: #a0aec0; cursor: not-allowed; }
+
+  #preview-container { display: none; margin-bottom: 16px; }
+  #preview-container img {
+    max-height: 200px; border-radius: 8px;
+    border: 2px solid #e2e8f0;
+  }
+
+  #result { display: none; }
+
+  .result-card {
+    background: white; border-radius: 12px;
+    padding: 24px; margin-bottom: 20px;
+  }
+
+  .prediction-header {
+    display: flex; align-items: center;
+    gap: 16px; margin-bottom: 20px;
+  }
+  .prediction-label {
+    font-size: 1.4rem; font-weight: 700; color: #1a365d;
+  }
+  .confidence-badge {
+    background: #c6f6d5; color: #276749;
+    padding: 4px 12px; border-radius: 20px;
+    font-size: 0.85rem; font-weight: 600;
+  }
+  .confidence-badge.medium { background: #fefcbf; color: #744210; }
+  .confidence-badge.low    { background: #fed7d7; color: #742a2a; }
+
+  .description {
+    background: #ebf8ff; border-radius: 8px;
+    padding: 12px 16px; font-size: 0.9rem;
+    color: #2c5282; margin-bottom: 20px;
+  }
+
+  .prob-bars { margin-bottom: 16px; }
+  .prob-row {
+    display: flex; align-items: center;
+    gap: 10px; margin-bottom: 8px;
+  }
+  .prob-label {
+    width: 200px; font-size: 0.85rem;
+    color: #4a5568; text-align: right;
+    flex-shrink: 0;
+  }
+  .prob-bar-bg {
+    flex: 1; background: #e2e8f0;
+    border-radius: 4px; height: 18px; overflow: hidden;
+  }
+  .prob-bar {
+    height: 100%; background: #2b6cb0;
+    border-radius: 4px; transition: width 0.5s ease;
+  }
+  .prob-bar.top { background: #1a365d; }
+  .prob-val {
+    width: 50px; font-size: 0.82rem;
+    color: #4a5568; text-align: right;
+  }
+
+  .gradcam-section h3 {
+    font-size: 1rem; font-weight: 600;
+    color: #2d3748; margin-bottom: 12px;
+  }
+  #gradcam-img {
+    width: 100%; border-radius: 8px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .loading {
+    display: none; text-align: center;
+    padding: 40px; color: #4a5568;
+  }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 4px solid #bee3f8;
+    border-top-color: #2b6cb0;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-card {
+    background: #fff5f5; border: 1px solid #fc8181;
+    border-radius: 8px; padding: 16px;
+    color: #742a2a; display: none; margin-bottom: 16px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🔬 Skin Lesion Classifier</h1>
+    <p>EfficientNetB0 + Grad-CAM · 7-class dermoscopy image analysis</p>
+  </div>
+</header>
+
+<div class="disclaimer">
+  ⚠️ <strong>For educational and research purposes only.</strong>
+  This tool is not a medical diagnostic device. Always consult a qualified dermatologist.
+</div>
+
+<main>
+  <div class="upload-card" id="dropZone">
+    <div class="upload-icon">🖼️</div>
+    <h2>Upload a Dermoscopy Image</h2>
+    <p>Drag & drop or click to select · JPG, PNG · Max 10MB</p>
+    <div id="preview-container">
+      <img id="preview" src="" alt="Preview">
+    </div>
+    <input type="file" id="fileInput" accept="image/*">
+    <button class="btn" onclick="document.getElementById('fileInput').click()">
+      Choose Image
+    </button>
+    &nbsp;
+    <button class="btn" id="analyzeBtn" disabled onclick="analyze()">
+      Analyze
+    </button>
+  </div>
+
+  <div class="error-card" id="errorCard"></div>
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <p>Analyzing image with Grad-CAM...</p>
+  </div>
+
+  <div id="result">
+    <div class="result-card">
+      <div class="prediction-header">
+        <div class="prediction-label" id="predLabel">—</div>
+        <div class="confidence-badge" id="confBadge">—</div>
+      </div>
+      <div class="description" id="description">—</div>
+
+      <h3 style="margin-bottom:12px; color:#2d3748;">Class Probabilities</h3>
+      <div class="prob-bars" id="probBars"></div>
+    </div>
+
+    <div class="result-card gradcam-section">
+      <h3>Grad-CAM Explainability — Where the model looked</h3>
+      <img id="gradcam-img" src="" alt="Grad-CAM visualization">
+    </div>
+  </div>
+</main>
+
+<script>
+const API = "http://localhost:8000";
+let selectedFile = null;
+
+// File input
+document.getElementById("fileInput").addEventListener("change", e => {
+  const f = e.target.files[0];
+  if (f) setFile(f);
+});
+
+// Drag & drop
+const dropZone = document.getElementById("dropZone");
+dropZone.addEventListener("dragover",  e => { e.preventDefault(); dropZone.classList.add("dragover"); });
+dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+dropZone.addEventListener("drop", e => {
+  e.preventDefault();
+  dropZone.classList.remove("dragover");
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith("image/")) setFile(f);
+});
+
+function setFile(f) {
+  selectedFile = f;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    document.getElementById("preview").src = ev.target.result;
+    document.getElementById("preview-container").style.display = "block";
+  };
+  reader.readAsDataURL(f);
+  document.getElementById("analyzeBtn").disabled = false;
+  document.getElementById("result").style.display = "none";
+  document.getElementById("errorCard").style.display = "none";
+}
+
+async function analyze() {
+  if (!selectedFile) return;
+
+  document.getElementById("loading").style.display = "block";
+  document.getElementById("result").style.display = "none";
+  document.getElementById("errorCard").style.display = "none";
+  document.getElementById("analyzeBtn").disabled = true;
+
+  const formData = new FormData();
+  formData.append("file", selectedFile);
+
+  try {
+    const res  = await fetch(`${API}/predict`, { method: "POST", body: formData });
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.detail || "Prediction failed");
+
+    // Prediction label
+    document.getElementById("predLabel").textContent =
+      data.predicted_class.replace(/_/g, " ");
+
+    // Confidence badge
+    const conf = data.confidence;
+    const badge = document.getElementById("confBadge");
+    badge.textContent = `${(conf * 100).toFixed(1)}% confident`;
+    badge.className = "confidence-badge" +
+      (conf >= 0.7 ? "" : conf >= 0.4 ? " medium" : " low");
+
+    // Description
+    document.getElementById("description").textContent = data.description;
+
+    // Probability bars
+    const sorted = Object.entries(data.all_probabilities)
+      .sort((a, b) => b[1] - a[1]);
+    const topClass = sorted[0][0];
+
+    document.getElementById("probBars").innerHTML = sorted.map(([cls, prob]) => `
+      <div class="prob-row">
+        <div class="prob-label">${cls.replace(/_/g, " ")}</div>
+        <div class="prob-bar-bg">
+          <div class="prob-bar ${cls === topClass ? 'top' : ''}"
+               style="width:${(prob*100).toFixed(1)}%"></div>
+        </div>
+        <div class="prob-val">${(prob*100).toFixed(1)}%</div>
+      </div>
+    `).join("");
+
+    // Grad-CAM
+    if (data.gradcam_image) {
+      document.getElementById("gradcam-img").src =
+        "data:image/png;base64," + data.gradcam_image;
+    }
+
+    document.getElementById("result").style.display = "block";
+
+  } catch (err) {
+    const ec = document.getElementById("errorCard");
+    ec.textContent = "Error: " + err.message;
+    ec.style.display = "block";
+  } finally {
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("analyzeBtn").disabled = false;
+  }
+}
+</script>
+</body>
+</html>
