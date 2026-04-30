@@ -114,20 +114,15 @@ During Phase 1, `model.train()` was resetting frozen BatchNorm layers back to tr
 
 ```
 skin-lesion/
-├── src/
 │   ├── prepare_data.py     # Download ISIC dataset, build splits
 │   ├── dataset.py          # PyTorch DataLoader + transforms + WeightedSampler
 │   ├── model.py            # EfficientNetB2 + BN fix + AdamW
 │   ├── train.py            # Training loop + Focal Loss + full metrics
 │   └── gradcam.py          # Grad-CAM implementation
-├── app/
 │   ├── main.py             # FastAPI backend (local)
 │   └── index.html          # Frontend UI
-├── app.py                  # Hugging Face Spaces (Gradio)
-├── models/
-│   └── best_model.pth      # Best checkpoint (~31MB)
-├── outputs/
-│   └── confusion_matrix_test.png
+├── app.py                  # Hugging Face Spaces (Gradio)   
+├── demo.png
 └── requirements.txt
 ```
 
