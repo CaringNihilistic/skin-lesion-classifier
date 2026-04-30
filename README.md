@@ -56,7 +56,7 @@ Upload any dermoscopy image and get:
 - **All class probabilities** as a bar chart
 - **Grad-CAM heatmap** showing which skin regions influenced the prediction
 
-![Demo Screenshot](assets/demo.png)
+![Demo Screenshot](demo.png)
 
 ---
 
